@@ -6,6 +6,9 @@
  * option. This file may not be copied, modified, or distributed except
  * according to those terms. */
 
+use std::path::{Path, PathBuf};
+use std::ffi::OsStr;
+
 impl super::BuildConfig {
     pub fn cmake(&self) {
         let mut cmk = cmake::Config::new(&self.mbedtls_src);
@@ -19,6 +22,9 @@ impl super::BuildConfig {
         .define("GEN_FILES", "ON")
         // Prefer unix-style over Apple-style Python3 on macOS, required for the Github Actions CI
         .define("Python3_FIND_FRAMEWORK", "LAST")
+        // We're building a static library, not an executable, so the try_compile stage of the
+        // cmake build should try to compile a static library as well.
+        .define("CMAKE_TRY_COMPILE_TARGET_TYPE","STATIC_LIBRARY")
         .build_target("install");
         for cflag in &self.cflags {
             cmk.cflag(cflag);
@@ -41,9 +47,6 @@ impl super::BuildConfig {
             // When building on Linux, -rdynamic flag is added automatically. Changing the
             // CMAKE_SYSTEM_NAME to Generic avoids this.
             cmk.define("CMAKE_SYSTEM_NAME", "Generic");
-            // The compiler test requires _exit which is not available. By just trying to
-            // compile a library, we can fix it.
-            cmk.define("CMAKE_TRY_COMPILE_TARGET_TYPE", "STATIC_LIBRARY");
         }
 
         let dst = cmk.build();
